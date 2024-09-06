@@ -3,8 +3,9 @@ from tkinter import messagebox, ttk
 import sqlite3
 import pandas as pd
 import matplotlib.pyplot as plt
+import emoji
 
-# Bet class to store information about each bet
+# Constructor for various data
 class Bet:
     def __init__(self, sport, amount, odds, outcome, bet_type):
         self.sport = sport
@@ -17,7 +18,7 @@ class Bet:
 conn = sqlite3.connect('bets.db')
 cursor = conn.cursor()
 
-# Create a table to store bets if it doesn't exist
+# Create table for bets if it doesn't exist
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS bets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,13 +31,13 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# Function to add a bet to the database
+#Add a bet to the database
 def save_bet_to_db(bet):
     cursor.execute("INSERT INTO bets (sport, amount, odds, outcome, bet_type) VALUES (?, ?, ?, ?, ?)",
                    (bet.sport, bet.amount, bet.odds, bet.outcome, bet.bet_type))
     conn.commit()
 
-# Function to add a bet
+# Add a bet with user input
 def add_bet():
     sport = sport_var.get()
     amount = amount_entry.get()
@@ -49,6 +50,15 @@ def add_bet():
         return
     
     try:
+        float(amount)
+        float(odds)
+    except ValueError:
+        messagebox.showerror("Error", "Invalid input! Please enter numbers for Amount and Odds.")
+        return
+    if float(amount) <=0 or float(odds) <= 1:
+        messagebox.showerror("Error", "Amount must be positive and Odds must be greater than 1!")
+        return
+    try:
         bet = Bet(sport, amount, odds, outcome, bet_type)
         save_bet_to_db(bet)
         messagebox.showinfo("Bet Added", f"Added {bet_type} bet on {sport}")
@@ -56,13 +66,13 @@ def add_bet():
     except ValueError:
         messagebox.showerror("Error", "Invalid input! Please enter numbers for Amount and Odds.")
 
-# Clear entry fields
+# Clear gui fields
 def clear_entries():
-    sport_var.set("Football")  # Reset dropdown to default value
+    sport_var.set("Football 🏈")  # Reset dropdown to default value
     amount_entry.delete(0, tk.END)
     odds_entry.delete(0, tk.END)
 
-# Function to display statistics
+# Display statistics
 def show_stats():
     cursor.execute("SELECT * FROM bets")
     bets = cursor.fetchall()
@@ -79,7 +89,7 @@ def show_stats():
     stats = f"Total Wins: ${total_wins:.2f}\nTotal Losses: ${total_losses:.2f}\nNet Profit/Loss: ${net_profit:.2f}\nWin Percentage: {win_percentage:.2f}%"
     messagebox.showinfo("Stats", stats)
 
-# Function to generate a graph using Pandas and Matplotlib
+# Generate a graph using Pandas and Matplotlib
 def show_graph():
     # Read data from SQLite database using Pandas
     df = pd.read_sql_query("SELECT * FROM bets", conn)
@@ -119,12 +129,13 @@ def show_wager_history():
     history_window.title("Wager History")
     
     # Create a Treeview widget to display the wagers in table format
-    tree = ttk.Treeview(history_window, columns=("Sport", "Amount", "Odds", "Outcome", "Bet Type"), show='headings')
+    tree = ttk.Treeview(history_window, columns=("Sport", "Amount", "Odds(Decimal)", "Outcome", "Bet Type", "Profit/Loss"), show='headings')
     tree.heading("Sport", text="Sport")
     tree.heading("Amount", text="Amount")
-    tree.heading("Odds", text="Odds")
+    tree.heading("Odds(Decimal)", text="Odds(Decimal)")
     tree.heading("Outcome", text="Outcome")
     tree.heading("Bet Type", text="Bet Type")
+    tree.heading("Profit/Loss", text="Profit/Loss")
     
     tree.grid(row=0, column=0, sticky='nsew')
 
@@ -132,21 +143,52 @@ def show_wager_history():
     scrollbar = tk.Scrollbar(history_window, orient="vertical", command=tree.yview)
     tree.configure(yscroll=scrollbar.set)
     scrollbar.grid(row=0, column=1, sticky='ns')
-
+    tree.tag_configure('green', foreground='green')
+    tree.tag_configure('red', foreground='red')
+        
     # Insert wagers into the Treeview
+    net_profit = 0
+    total_wagers = 0
+    wins = 0
+    losses = 0
     for wager in wagers:
-        tree.insert("", "end", values=(wager[1], wager[2], wager[3], wager[4], wager[5]))
+        net = 0
+        total_wagers += wager[2]
+        if wager[4] == "Win":
+            wins+=1
+            net = (wager[2] * wager[3]) - wager[2]
+            net_profit += net
+            net = f"${net:.2f}"
+            tree.insert("", "end", values=(wager[1], f"${wager[2]:.2f}", wager[3], wager[4], wager[5]
+                                       , net), tags=('green',))
+        else:
+            net = -1 * wager[2]
+            losses+=1
+            net_profit += net
+            net = f"${net:.2f}"
+            tree.insert("", "end", values=(wager[1], f"${wager[2]:.2f}", wager[3], wager[4], wager[5]
+                                       , net), tags=('red',))   
+    
+    tree.insert("", "end", values=("", "", "", "", "", ""))
 
+    if net_profit > 0:
+        net_profit = f"${net_profit:.2f}"
+        tree.insert("", "end", values=("Total", f"${total_wagers:.2f}", "", f"{wins}-{losses}", "", net_profit), tags=('green',))
+    else:
+        net_profit = f"${net_profit:.2f}"
+        tree.insert("", "end", values=("Total", f"${total_wagers:.2f}", "", f"{wins}-{losses}", "", net_profit), tags=('red',))
+        
 # Create main window
 root = tk.Tk()
 root.title("Event Outcome Tracker")
+sports_list = ["Football 🏈", "Basketball 🏀", "Hockey 🏒", "Baseball ⚾"]
 
 # Dropdown for Sport selection
 tk.Label(root, text="Sport:").grid(row=0, column=0)
 sport_var = tk.StringVar(root)
-sport_var.set("Football")  # Default value
+sport_var.set("Football 🏈")  # Default value
 
-sport_dropdown = tk.OptionMenu(root, sport_var, "Football", "Basketball", "Hockey", "Baseball")
+sport_dropdown = tk.OptionMenu(root, sport_var, *sports_list)
 sport_dropdown.grid(row=0, column=1)
 
 # Input fields for amount, odds, outcome, and bet type
@@ -154,7 +196,7 @@ tk.Label(root, text="Amount:").grid(row=1, column=0)
 amount_entry = tk.Entry(root)
 amount_entry.grid(row=1, column=1)
 
-tk.Label(root, text="Odds:").grid(row=2, column=0)
+tk.Label(root, text="Odds (Decimal):").grid(row=2, column=0)
 odds_entry = tk.Entry(root)
 odds_entry.grid(row=2, column=1)
 
@@ -175,8 +217,8 @@ bet_type_menu.grid(row=4, column=1)
 tk.Button(root, text="Add Bet", command=add_bet).grid(row=5, column=0, columnspan=2)
 tk.Button(root, text="Show Stats", command=show_stats).grid(row=6, column=0, columnspan=2)
 tk.Button(root, text="Show Graph", command=show_graph).grid(row=7, column=0, columnspan=2)
-tk.Button(root, text="Clear All Bets", command=clear_all_bets).grid(row=8, column=0, columnspan=2)
-tk.Button(root, text="Show Wager History", command=show_wager_history).grid(row=9, column=0, columnspan=2)
+tk.Button(root, text="Show Wager History", command=show_wager_history).grid(row=8, column=0, columnspan=2)
+tk.Button(root, text="Clear All Bets", command=clear_all_bets).grid(row=9, column=0, columnspan=2)
 
 root.mainloop()
 
