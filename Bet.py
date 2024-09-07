@@ -89,6 +89,32 @@ def show_stats():
     stats = f"Total Wins: ${total_wins:.2f}\nTotal Losses: ${total_losses:.2f}\nNet Profit/Loss: ${net_profit:.2f}\nWin Percentage: {win_percentage:.2f}%"
     messagebox.showinfo("Stats", stats)
 
+def plot_graph(x_col, y_col, axes_dict):
+    df = pd.read_sql_query("SELECT * FROM bets", conn)
+    if df.empty:
+        messagebox.showinfo("No data to show")
+        return
+    #if axes_dict[x_col] not in df.columns or axes_dict[y_col] not in df.columns:
+    #    messagebox.showinfo("No such axes available")
+    #    return
+    
+    #print(df.head())
+    # Create a bar graph showing x by y axis
+    if (axes_dict[y_col] == "odds"):
+        graph = df.groupby(axes_dict[x_col]) [axes_dict[y_col]].mean()
+    elif (axes_dict[y_col] == "win_rate"):
+        df['Win'] = df["outcome"].apply(lambda x:1 if x == "Win" else 0)
+        graph = df.groupby(axes_dict[x_col])['Win'].mean() * 100
+
+    else :
+        graph = df.groupby(axes_dict[x_col]) [axes_dict[y_col]].sum()
+
+    graph.plot(kind='bar', color='skyblue')
+    plt.title(f"{y_col} by {x_col}")
+    plt.xlabel(f"{x_col}")
+    plt.ylabel(f"{y_col}")
+    plt.show()
+
 # Generate a graph using Pandas and Matplotlib
 def show_graph():
     # Read data from SQLite database using Pandas
@@ -97,15 +123,43 @@ def show_graph():
     if df.empty:
         messagebox.showinfo("No Data", "No data to display.")
         return
+    
+    graph_window = tk.Toplevel(root)
+    graph_window.geometry("400x300")
+    graph_window.title("Choose Data To Analyze")
+    axes_dict = {
+        "Sport":"sport",
+        "Bet Type":"bet_type",
+        "Win/Loss":"outcome",
+        "Bet Amount":"amount",
+        "Average Odds":"odds",
+        "Win Percentage (%)":"win_rate",
+    }
 
-    # Create a bar graph showing total bet amounts by bet type
-    bet_type_totals = df.groupby('bet_type')['amount'].sum()
+    tk.Label(graph_window, text="Choose The Data To Analyze").grid(row=25, column=50)
+    tk.Label(graph_window, text = "X-axis:").grid(row=35,column=50)
+    columns = list(axes_dict.keys())
+    x_var = tk.StringVar(graph_window)
+    #default value
+    x_var.set(columns[0]) 
 
-    bet_type_totals.plot(kind='bar', color='skyblue')
-    plt.title("Total Bet Amount by Bet Type")
-    plt.xlabel("Bet Type")
-    plt.ylabel("Total Amount ($)")
-    plt.show()
+    x_dropdown = tk.OptionMenu(graph_window, x_var, *columns[:3])
+    x_dropdown.grid(row=35, column=55)
+
+    tk.Label(graph_window, text = "Y-axis:").grid(row=55,column=50)
+    y_var = tk.StringVar(graph_window)
+    #default value
+    y_var.set(columns[3]) 
+
+    y_dropdown = tk.OptionMenu(graph_window, y_var, *columns[3:])
+    y_dropdown.grid(row=55, column=55)
+
+    def on_plot_click():
+        x_col = x_var.get()
+        y_col = y_var.get()
+        plot_graph(x_col, y_col, axes_dict)
+
+    tk.Button(graph_window, text="Plot Graph", command=on_plot_click).grid(row=75, column=70, columnspan=2)
 
 # Function to clear all data from the database
 def clear_all_bets():
@@ -180,7 +234,7 @@ def show_wager_history():
         
 # Create main window
 root = tk.Tk()
-root.title("Event Outcome Tracker")
+root.title("OutcomeViz Sports Tracker")
 sports_list = ["Football 🏈", "Basketball 🏀", "Hockey 🏒", "Baseball ⚾"]
 
 # Dropdown for Sport selection
