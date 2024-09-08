@@ -7,7 +7,7 @@ This is a desktop application built using Python, SQLite, and Tkinter that track
 - Track sports events (Football, Basketball, Hockey, Baseball) and associated wagers.
 - Persistent storage of wager data using SQLite.
 - Display wager history in a table format.
-- Generate visual analytics (bar charts) to show trends by bet type.
+- Generate visual analytics (bar charts) to show trends between various statistics.
 - Clear all wager data with a single button.
 
 ## Technologies Used
