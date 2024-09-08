@@ -270,7 +270,7 @@ bet_type_menu.grid(row=4, column=1)
 # Add buttons
 tk.Button(root, text="Add Bet", command=add_bet).grid(row=5, column=0, columnspan=2)
 tk.Button(root, text="Show Stats", command=show_stats).grid(row=6, column=0, columnspan=2)
-tk.Button(root, text="Show Graph", command=show_graph).grid(row=7, column=0, columnspan=2)
+tk.Button(root, text="View Graphs", command=show_graph).grid(row=7, column=0, columnspan=2)
 tk.Button(root, text="Show Wager History", command=show_wager_history).grid(row=8, column=0, columnspan=2)
 tk.Button(root, text="Clear All Bets", command=clear_all_bets).grid(row=9, column=0, columnspan=2)
 
